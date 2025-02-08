@@ -1,0 +1,2 @@
+D:/PG/ProiecPG/ProjectPG/build/CMakeFiles/ALL_BUILD.dir
+D:/PG/ProiecPG/ProjectPG/build/CMakeFiles/ZERO_CHECK.dir
