@@ -17,6 +17,9 @@ uniform vec3 lightColor;
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 
+uniform int fogDisplay;
+
+
 //components
 vec3 ambient;
 float ambientStrength = 0.2f;
@@ -48,6 +51,16 @@ void computeDirLight()
     specular = specularStrength * specCoeff * lightColor;
 }
 
+float computeFog()
+{
+ vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+    float fogDensity = 0.05f;
+    float fragmentDistance = length(fPosEye.xyz);
+    float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
+
+    return clamp(fogFactor, 0.0f, 1.0f);
+}
+
 void main() 
 {
     computeDirLight();
@@ -55,5 +68,14 @@ void main()
     //compute final vertex color
     vec3 color = min((ambient + diffuse) * texture(diffuseTexture, fTexCoords).rgb + specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
 
-    fColor = vec4(color, 1.0f);
+    if(fogDisplay == 1)
+    {
+        float fogFactor = computeFog();
+        fColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+        fColor *= (1 - fogFactor);
+        fColor += (vec4(color, 1.0f) * fogFactor);
+    }
+    else{
+        fColor = vec4(color, 1.0f);
+    }
 }

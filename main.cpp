@@ -40,6 +40,7 @@ GLint projectionLoc;
 GLint normalMatrixLoc;
 GLint lightDirLoc;
 GLint lightColorLoc;
+GLint fogDisplayLoc;
 
 // camera
 gps::Camera myCamera(
@@ -52,7 +53,8 @@ GLfloat cameraSpeed = 0.1f;
 GLboolean pressedKeys[1024];
 
 // models
-gps::Model3D teapot, grass;
+//gps::Model3D teapot, grass;
+gps::Model3D map, windmill, dayTimeSky, nightTimeSky;
 GLfloat angle;
 
 // shaders
@@ -148,6 +150,13 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 
 
 void processMovement() {
+    if (pressedKeys[GLFW_KEY_1]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe mode
+    }
+
+    if (pressedKeys[GLFW_KEY_2]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Polygonal mode
+    }
     if (pressedKeys[GLFW_KEY_W]) {
         myCamera.move(gps::MOVE_FORWARD, cameraSpeed);
         //update view matrix
@@ -203,6 +212,15 @@ void processMovement() {
         // update normal matrix for teapot
         normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     }
+
+	if (pressedKeys[GLFW_KEY_F]) {
+		myBasicShader.useShaderProgram();   
+        glUniform1i(fogDisplayLoc, 1);
+	}
+	if (pressedKeys[GLFW_KEY_C]) {
+		myBasicShader.useShaderProgram();
+		glUniform1i(fogDisplayLoc, 0);
+	}
 }
 
 void initOpenGLWindow() {
@@ -227,8 +245,12 @@ void initOpenGLState() {
 }
 
 void initModels() {
-    teapot.LoadModel("models/teapot/teapot20segUT.obj");
-	grass.LoadModel("models/grass/grass.obj");
+    //teapot.LoadModel("models/teapot/teapot20segUT.obj");
+	//grass.LoadModel("models/grass/grass.obj");
+	map.LoadModel("models/map/PGmap.obj");
+	windmill.LoadModel("models/windmill/windmill.obj");
+	dayTimeSky.LoadModel("models/daytime/DaytimeSky.obj");
+	nightTimeSky.LoadModel("models/nightTime/NightTime.obj");
 }
 
 void initShaders() {
@@ -268,6 +290,9 @@ void initUniforms() {
     // send light dir to shader
     glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 
+	myBasicShader.useShaderProgram();
+	fogDisplayLoc = glGetUniformLocation(myBasicShader.shaderProgram, "fogDisplay");
+
     //set light color
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f); //white light
     lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
@@ -275,48 +300,63 @@ void initUniforms() {
     glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 }
 
-void renderTeapot(gps::Shader shader) {
+
+void renderMap(gps::Shader shader) {
     // select active shader program
     shader.useShaderProgram();
 
-    //send teapot model matrix data to shader
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    // create model matrix for map and move it 2 units lower
+    glm::mat4 mapModel = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 
-    //send teapot normal matrix data to shader
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    // send map model matrix data to shader
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(mapModel));
 
-    // draw teapot
-    teapot.Draw(shader);
+    // compute normal matrix for map
+    glm::mat3 mapNormalMatrix = glm::mat3(glm::inverseTranspose(view * mapModel));
+    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(mapNormalMatrix));
+
+    // draw map
+    map.Draw(shader);
 }
 
-void renderGrass(gps::Shader shader) {
-    // select active shader program
+void renderDaySky(gps::Shader shader) {
     shader.useShaderProgram();
+	glm::mat4 skyModel = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 0.0f));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(skyModel));
+	glm::mat3 skyNormalMatrix = glm::mat3(glm::inverseTranspose(view * skyModel));
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(skyNormalMatrix));
+	dayTimeSky.Draw(shader);
+}
 
-    // create model matrix for grass and move it 2 units lower
-    glm::mat4 grassModel = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+void renderNightSky(gps::Shader shader) {
+	shader.useShaderProgram();
+	glm::mat4 skyModel = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -12.0f, 0.0f));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(skyModel));
+	glm::mat3 skyNormalMatrix = glm::mat3(glm::inverseTranspose(view * skyModel));
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(skyNormalMatrix));
+	nightTimeSky.Draw(shader);
+}
 
-    // send grass model matrix data to shader
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(grassModel));
+GLfloat windmillAngle;
 
-    // compute normal matrix for grass
-    glm::mat3 grassNormalMatrix = glm::mat3(glm::inverseTranspose(view * grassModel));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(grassNormalMatrix));
+void renderWindmill(gps::Shader shader) {
+	shader.useShaderProgram();
 
-    // draw grass
-    grass.Draw(shader);
+	windmillAngle += 1.0f;
+
+	glm::mat4 windmillModel = glm::translate(glm::mat4(1.0f), glm::vec3(1.3f, 2.85f, -5.0f));
+    windmillModel = glm::rotate(windmillModel, glm::radians(windmillAngle), glm::vec3(0.0f, 0.0f, 1.0f));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(windmillModel));
+	glm::mat3 windmillNormalMatrix = glm::mat3(glm::inverseTranspose(view * windmillModel));
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(windmillNormalMatrix));
+	windmill.Draw(shader);
 }
 
 void renderScene() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //render the scene
-
-    // render the teapot
-    renderTeapot(myBasicShader);
-
-	renderGrass(myBasicShader);
-
+	renderMap(myBasicShader);
+	renderWindmill(myBasicShader);
+	renderDaySky(myBasicShader);
 }
 
 void cleanup() {
